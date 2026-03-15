@@ -554,8 +554,12 @@ Genera el documento completo.`;
   } else {
     docContent.textContent = 'Error: ' + (data?.error || 'Respuesta vacía');
   }
-} catch(e) {
-  docContent.textContent = 'Error de conexión: ' + e.message;
+  } catch(e) {
+    docContent.textContent = 'Error de conexión: ' + e.message;
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '⚖️ Generar recurso con IA';
 }
 
 function copyDoc() {
