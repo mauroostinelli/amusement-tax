@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Seed DB - Amusement Tax</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  body { background:#0a0a0a; color:#f0f0f0; font-family:monospace; padding:40px; }
+  h1 { color:#ff4d00; margin-bottom:20px; }
+  #log { background:#111; border:1px solid #222; padding:20px; border-radius:12px; height:500px; overflow-y:auto; font-size:0.85rem; line-height:1.8; }
+  button { background:#ff4d00; border:none; color:white; padding:14px 32px; border-radius:10px; font-size:1rem; font-weight:700; cursor:pointer; margin-bottom:20px; }
+  button:disabled { background:#333; cursor:not-allowed; }
+  .ok { color:#00c853; } .err { color:#ff1744; } .info { color:#888; }
+</style>
+</head>
+<body>
+<h1>🌍 Seed: 51 ciudades europeas</h1>
+<p style="color:#888;margin-bottom:20px">Pulsa el botón para insertar todas las ciudades en la base de datos. Las existentes se saltarán automáticamente.</p>
+<button id="btn" onclick="seedAll()">🚀 Insertar todas las ciudades</button>
+<div id="log">Esperando...</div>
+<script>
+const SUPABASE_URL = 'https://kflbexqsssmdyadlxsrd.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtmbGJleHFzc3NtZHlhZGx4c3JkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2MDc5MjYsImV4cCI6MjA4OTE4MzkyNn0.FYJaRPJum4-HAgngXlZ4XzhazUbcw9Y0YJDA97Y_m-0';
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const cities = [
+  { city_name:'Barcelona', country:'España', tax_name:'IEET + Recàrrec Municipal', tax_authority:'Agència Tributària de Catalunya + Ajuntament de Barcelona', amount_min:5.70, amount_max:15.00, currency:'EUR', notes:'Combina tasa regional (1.20-6€) + recargo municipal (4€). Desde abril 2026 hoteles pagan 10-15€/noche. Apartamentos hasta 12.50€/noche.', source_url:'https://ajuntament.barcelona.cat', submitted_by:'seed', votes:0 },
+  { city_name:'Palma de Mallorca', country:'España', tax_name:'Impost sobre Estades Turístiques (Ecotasa)', tax_authority:'Agència Tributària de les Illes Balears', amount_min:1.00, amount_max:4.00, currency:'EUR', notes:'Varía por temporada y categoría. Alta temporada 2-4€, baja 1-2€. Reducción 50% a partir de la 8ª noche.', source_url:'https://www.caib.es', submitted_by:'seed', votes:0 },
+  { city_name:'Ibiza', country:'España', tax_name:'Impost sobre Estades Turístiques (Ecotasa)', tax_authority:'Agència Tributària de les Illes Balears', amount_min:1.00, amount_max:4.00, currency:'EUR', notes:'Mismas tarifas que Mallorca. Alta temporada hasta 4€ hoteles de lujo. Baja temporada desde 1€.', source_url:'https://www.caib.es', submitted_by:'seed', votes:0 },
+  { city_name:'Madrid', country:'España', tax_name:'Sin tasa turística vigente', tax_authority:'Ayuntamiento de Madrid', amount_min:0.00, amount_max:0.00, currency:'EUR', notes:'Madrid no cobra tasa turística de alojamiento a fecha 2026.', source_url:'', submitted_by:'seed', votes:0 },
+  { city_name:'Sevilla', country:'España', tax_name:'Sin tasa turística de alojamiento vigente', tax_authority:'Ayuntamiento de Sevilla', amount_min:0.00, amount_max:0.00, currency:'EUR', notes:'En estudio. La Plaza de España planea cobrar 3-4€ de entrada a visitantes diurnos.', source_url:'', submitted_by:'seed', votes:0 },
+  { city_name:'París', country:'Francia', tax_name:'Taxe de Séjour', tax_authority:'Direction des Finances Publiques', amount_min:2.60, amount_max:11.38, currency:'EUR', notes:'Varía por categoría: hoteles 1* = 2.60€, 5* = 11.38€ por persona/noche. La mayor parte de hostales cobran la tarifa mínima.', source_url:'https://www.paris.fr', submitted_by:'seed', votes:0 },
+  { city_name:'Niza', country:'Francia', tax_name:'Taxe de Séjour', tax_authority:'Mairie de Nice', amount_min:2.60, amount_max:11.38, currency:'EUR', notes:'Misma escala que París según categoría del alojamiento. Muy presente en la Côte d\'Azur.', source_url:'', submitted_by:'seed', votes:0 },
+  { city_name:'Lyon', country:'Francia', tax_name:'Taxe de Séjour', tax_authority:'Ville de Lyon', amount_min:0.70, amount_max:4.00, currency:'EUR', notes:'Varía por tipo de alojamiento. Hostales 0.70€, hoteles de lujo hasta 4€.', source_url:'', submitted_by:'seed', votes:0 },
+  { city_name:'Marsella', country:'Francia', tax_name:'Taxe de Séjour', tax_authority:'Ville de Marseille', amount_min:0.70, amount_max:3.00, currency:'EUR', notes:'Entre 0.70€ y 3.00€ por persona/noche según categoría del alojamiento.', source_url:'', submitted_by:'seed', votes:0 },
+  { city_name:'Burdeos', country:'Francia', tax_name:'Taxe de Séjour', tax_authority:'Ville de Bordeaux', amount_min:0.70, amount_max:3.00, currency:'EUR', notes:'Tarifas estándar francesas por categoría de alojamiento.', source_url:'', submitted_by:'seed', votes:0 },
+  { city_name:'Roma', country:'Italia', tax_name:'Tassa di Soggiorno', tax_authority:'Comune di Roma Capitale', amount_min:4.00, amount_max:10.00, currency:'EUR', notes:'1*=4€, 2*=5€, 3*=6€, 4*=7.50€, 5*=10€ por persona/noche. Tarifas actualizadas en 2025.', source_url:'https://www.comune.roma.it', submitted_by:'seed', votes:0 },
+  { city_name:'Venezia', country:'Italia', tax_name:'Tassa di Soggiorno + Contributo d\'Accesso', tax_authority:'Comune di Venezia', amount_min:1.00, amount_max:5.00, currency:'EUR', notes:'Tasa alojamiento hasta 5€/noche (5*). Además 5-10€ acceso diurno para visitantes sin pernocta.', source_url:'https://www.comune.venezia.it', submitted_by:'seed', votes:0 },
+  { city_name:'Florencia', country:'Italia', tax_name:'Tassa di Soggiorno', tax_authority:'Comune di Firenze', amount_min:2.00, amount_max:6.50, currency:'EUR', notes:'Varía por categoría. Desde 2024 incluye también casas de alquiler turístico.', source_url:'', submitted_by:'seed', votes:0 },
+  { city_name:'Milán', country:'Italia', tax_name:'Tassa di Soggiorno', tax_authority:'Comune di Milano', amount_min:2.00, amount_max:7.00, currency:'EUR', notes:'Desde 2025 máximo 7€ por persona/noche en hoteles 4-5*. Subida desde 5€ anteriores por el Año Jubilar.', source_url:'', submitted_by:'seed', votes:0 },
+  { city_name:'Nápoles', country:'Italia', tax_name:'Tassa di Soggiorno', tax_authority:'Comune di Napoli', amount_min:0.50, amount_max:5.00, currency:'EUR', notes:'Entre 0.50€ y 5€ según categoría del alojamiento.', source_url:'', submitted_by:'seed', votes:0 },
+  { city_name:'Turín', country:'Italia', tax_name:'Tassa di Soggiorno', tax_authority:'Comune di Torino', amount_min:0.70, amount_max:4.00, currency:'EUR', notes:'Varía por categoría entre 0.70€ y 4€ por persona/noche.', source_url:'', submitted_by:'seed', votes:0 },
+  { city_name:'Amalfi', country:'Italia', tax_name:'Tassa di Soggiorno', tax_authority:'Comune di Amalfi', amount_min:1.00, amount_max:4.00, currency:'EUR', notes:'Costa Amalfitana. Entre 1€ y 4€ según tipo de alojamiento.', source_url:'', submitted_by:'seed', votes:0 },
+  { city_name:'Ámsterdam', country:'Países Bajos', tax_name:'Toeristenbelasting', tax_authority:'Gemeente Amsterdam', amount_min:12.50, amount_max:21.80, currency:'EUR', notes:'12.5% del precio del alojamiento (subida desde 7%). En hotel de 175€/noche = ~21.80€/noche. Cruceristas pagan 15€ por día.', source_url:'https://www.amsterdam.nl', submitted_by:'seed', votes:0 },
+  { city_name:'Berlín', country:'Alemania', tax_name:'City Tax / Kulturförderabgabe', tax_authority:'Senatsverwaltung für Finanzen Berlin', amount_min:5.00, amount_max:7.38, currency:'EUR', notes:'Desde enero 2025: 7.5% del coste neto del alojamiento (antes 5%). Media ~7.38€ por persona/noche. No aplica a viajes de negocios.', source_url:'https://www.berlin.de', submitted_by:'seed', votes:0 },
+  { city_name:'Hamburgo', country:'Alemania', tax_name:'Kultur- und Tourismustaxe', tax_authority:'Freie und Hansestadt Hamburg', amount_min:1.00, amount_max:3.00, currency:'EUR', notes:'Sistema escalonado según precio de la habitación. No se aplica a viajes de negocios documentados.', source_url:'', submitted_by:'seed', votes:0 },
+  { city_name:'Frankfurt', country:'Alemania', tax_name:'Kultur- und Tourismusförderabgabe', tax_authority:'Stadt Frankfurt am Main', amount_min:2.00, amount_max:2.00, currency:'EUR', notes:'Tasa fija de 2€ por persona/noche. No aplica a viajes de negocios.', source_url:'', submitted_by:'seed', votes:0 },
+  { city_name:'Colonia', country:'Alemania', tax_name:'Übernachtungsteuer (City Tax)', tax_authority:'Stadt Köln', amount_min:5.00, amount_max:5.00, currency:'EUR', notes:'5% del precio bruto de la habitación por persona/noche. Exento viajeros de negocios.', source_url:'', submitted_by:'seed', votes:0 },
+  { city_name:'Lisboa', country:'Portugal', tax_name:'Taxa Municipal Turística', tax_authority:'Câmara Municipal de Lisboa', amount_min:4.00, amount_max:4.00, currency:'EUR', notes:'4€ por persona/noche. Máximo 7 noches por estancia. Menores de 13 años exentos.', source_url:'https://www.cm-lisboa.pt', submitted_by:'seed', votes:0 },
+  { city_name:'Oporto', country:'Portugal', tax_name:'Taxa Municipal Turística', tax_authority:'Câmara Municipal do Porto', amount_min:3.00, amount_max:3.00, currency:'EUR', notes:'3€ por persona/noche. Límite de 7 noches por estancia.', source_url:'', submitted_by:'seed', votes:0 },
+  { city_name:'Faro', country:'Portugal', tax_name:'Taxa de Dormida', tax_authority:'Câmara Municipal de Faro', amount_min:2.00, amount_max:2.00, currency:'EUR', notes:'2€ por persona/noche. Zona del Algarve.', source_url:'', submitted_by:'seed', votes:0 },
+  { city_name:'Setúbal', country:'Portugal', tax_name:'Taxa Municipal Turística', tax_authority:'Câmara Municipal de Setúbal', amount_min:2.00, amount_max:2.00, currency:'EUR', notes:'2€ por persona/noche. Introducida en 2024.', source_url:'', submitted_by:'seed', votes:0 },
+  { city_name:'Praga', country:'República Checa', tax_name:'Místní poplatek z pobytu', tax_authority:'Magistrát hl. m. Prahy', amount_min:2.02, amount_max:2.02, currency:'EUR', notes:'50 CZK (~2.02€) por persona/noche. Solo para estancias de hasta 60 días.', source_url:'https://www.praha.eu', submitted_by:'seed', votes:0 },
+  { city_name:'Viena', country:'Austria', tax_name:'Ortstaxe', tax_authority:'Stadt Wien', amount_min:3.20, amount_max:3.20, currency:'EUR', notes:'3.2% del precio de la habitación por persona/noche. Una de las más antiguas de Europa.', source_url:'https://www.wien.gv.at', submitted_by:'seed', votes:0 },
+  { city_name:'Salzburgo', country:'Austria', tax_name:'Nächtigungstaxe', tax_authority:'Stadt Salzburg', amount_min:3.47, amount_max:3.47, currency:'EUR', notes:'~3.47€ por persona/noche. Puede variar ligeramente por zona del municipio.', source_url:'', submitted_by:'seed', votes:0 },
+  { city_name:'Innsbruck', country:'Austria', tax_name:'Nächtigungstaxe', tax_authority:'Stadt Innsbruck', amount_min:1.80, amount_max:2.00, currency:'EUR', notes:'Entre 1.80€ y 2€ por persona/noche.', source_url:'', submitted_by:'seed', votes:0 },
+  { city_name:'Bruselas', country:'Bélgica', tax_name:'Taxe de Séjour / Verblijfstaks', tax_authority:'Ville de Bruxelles', amount_min:3.00, amount_max:5.00, currency:'EUR', notes:'Hoteles: 5€/noche. B&Bs y alquileres: 4€. Campings: 3€. Se añaden céntimos adicionales en tasas complementarias.', source_url:'https://www.brussels.be', submitted_by:'seed', votes:0 },
+  { city_name:'Brujas', country:'Bélgica', tax_name:'Stadsbelasting op logies', tax_authority:'Stad Brugge', amount_min:3.50, amount_max:3.50, currency:'EUR', notes:'3.50€ por persona/noche en todos los alojamientos turísticos de la ciudad.', source_url:'', submitted_by:'seed', votes:0 },
+  { city_name:'Budapest', country:'Hungría', tax_name:'Idegenforgalmi adó', tax_authority:'Budapest Főváros Önkormányzata', amount_min:4.00, amount_max:4.00, currency:'EUR', notes:'4% sobre el precio del alojamiento por persona/noche. Exento menores de 18 años.', source_url:'https://budapest.hu', submitted_by:'seed', votes:0 },
+  { city_name:'Cracovia', country:'Polonia', tax_name:'Opłata miejscowa', tax_authority:'Urząd Miasta Krakowa', amount_min:1.60, amount_max:1.60, currency:'EUR', notes:'~8 PLN (~1.60€) por persona/noche. Una de las tasas más bajas de Europa.', source_url:'', submitted_by:'seed', votes:0 },
+  { city_name:'Atenas', country:'Grecia', tax_name:'Telos Diamonis', tax_authority:'Ypourgeio Tourismou', amount_min:1.50, amount_max:10.00, currency:'EUR', notes:'Por habitación/noche: 1-2*=1.50€, 3*=3€, 4*=7€, 5*=10€. No por persona, por habitación.', source_url:'', submitted_by:'seed', votes:0 },
+  { city_name:'Santorini', country:'Grecia', tax_name:'Telos Diamonis', tax_authority:'Dimos Thiras', amount_min:1.50, amount_max:10.00, currency:'EUR', notes:'Escala nacional griega. En Santorini predominan hoteles 4-5*, por lo que la media real es 7-10€/habitación/noche.', source_url:'', submitted_by:'seed', votes:0 },
+  { city_name:'Mykonos', country:'Grecia', tax_name:'Telos Diamonis', tax_authority:'Dimos Mykonou', amount_min:1.50, amount_max:10.00, currency:'EUR', notes:'Escala nacional. Alta proporción de hoteles de lujo. La media real en temporada es cercana al máximo de 10€.', source_url:'', submitted_by:'seed', votes:0 },
+  { city_name:'Corfú', country:'Grecia', tax_name:'Telos Diamonis', tax_authority:'Dimos Kerkyras', amount_min:1.50, amount_max:7.00, currency:'EUR', notes:'1-2*=1.50€, 3*=3€, 4*=7€ por habitación/noche.', source_url:'', submitted_by:'seed', votes:0 },
+  { city_name:'Dubrovnik', country:'Croacia', tax_name:'Boravišna pristojba', tax_authority:'Grad Dubrovnik', amount_min:2.00, amount_max:10.00, currency:'EUR', notes:'Alta temporada hasta 10€. En 2025 también aplica tasa de acceso al casco histórico amurallado.', source_url:'', submitted_by:'seed', votes:0 },
+  { city_name:'Split', country:'Croacia', tax_name:'Boravišna pristojba', tax_authority:'Grad Split', amount_min:1.00, amount_max:2.00, currency:'EUR', notes:'Entre 1€ y 2€ por persona/noche según temporada.', source_url:'', submitted_by:'seed', votes:0 },
+  { city_name:'Zagreb', country:'Croacia', tax_name:'Boravišna pristojba', tax_authority:'Grad Zagreb', amount_min:0.80, amount_max:1.50, currency:'EUR', notes:'Entre 0.80€ y 1.50€ por persona/noche.', source_url:'', submitted_by:'seed', votes:0 },
+  { city_name:'Zúrich', country:'Suiza', tax_name:'Kurtaxe', tax_authority:'Stadt Zürich', amount_min:3.50, amount_max:3.74, currency:'EUR', notes:'3.50 CHF (~3.74€) por persona/noche. Se aplica en toda la ciudad.', source_url:'https://www.stadt-zuerich.ch', submitted_by:'seed', votes:0 },
+  { city_name:'Ginebra', country:'Suiza', tax_name:'Taxe de séjour', tax_authority:'Ville de Genève', amount_min:3.30, amount_max:3.52, currency:'EUR', notes:'3.30 CHF (~3.52€) por persona/noche.', source_url:'', submitted_by:'seed', votes:0 },
+  { city_name:'Copenhague', country:'Dinamarca', tax_name:'Sin tasa turística municipal', tax_authority:'Københavns Kommune', amount_min:0.00, amount_max:0.00, currency:'EUR', notes:'Dinamarca eliminó su tasa turística nacional. Copenhague no aplica tasa adicional en 2026.', source_url:'', submitted_by:'seed', votes:0 },
+  { city_name:'Vilna', country:'Lituania', tax_name:'Vietinė rinkliava', tax_authority:'Vilniaus miesto savivaldybė', amount_min:2.00, amount_max:2.00, currency:'EUR', notes:'2€ por persona/noche. No sujeta a IVA.', source_url:'', submitted_by:'seed', votes:0 },
+  { city_name:'Bratislava', country:'Eslovaquia', tax_name:'Miestny poplatok za ubytovanie', tax_authority:'Magistrát hlavného mesta SR Bratislavy', amount_min:1.70, amount_max:1.70, currency:'EUR', notes:'1.70€ por persona/noche.', source_url:'', submitted_by:'seed', votes:0 },
+  { city_name:'Bucarest', country:'Rumanía', tax_name:'Taxă hotelieră', tax_authority:'Primăria Municipiului București', amount_min:1.00, amount_max:3.00, currency:'EUR', notes:'Entre 1% y 3% del precio del alojamiento según categoría.', source_url:'', submitted_by:'seed', votes:0 },
+  { city_name:'Edimburgo', country:'Reino Unido', tax_name:'Visitor Levy (en proceso)', tax_authority:'City of Edinburgh Council', amount_min:2.00, amount_max:2.00, currency:'GBP', notes:'Edimburgo es la primera ciudad del Reino Unido en implementar la tasa. ~2£ por persona/noche. En fase de implementación 2025-2026.', source_url:'', submitted_by:'seed', votes:0 },
+  { city_name:'Tallin', country:'Estonia', tax_name:'Reklaamimaks / turismimaks', tax_authority:'Tallinna Linnavalitsus', amount_min:1.00, amount_max:2.00, currency:'EUR', notes:'1-2€ por persona/noche en función del tipo de alojamiento.', source_url:'', submitted_by:'seed', votes:0 },
+  { city_name:'Estambul', country:'Turquía', tax_name:'Konaklama Vergisi', tax_authority:'Gelir İdaresi Başkanlığı', amount_min:2.00, amount_max:2.00, currency:'PCT', notes:'2% del precio total de la reserva por persona/noche. Aplica en toda Turquía desde 2023.', source_url:'', submitted_by:'seed', votes:0 },
+  { city_name:'Oporto', country:'Portugal', tax_name:'Taxa Municipal Turística', tax_authority:'Câmara Municipal do Porto', amount_min:3.00, amount_max:3.00, currency:'EUR', notes:'3€ por persona/noche con límite de 7 noches.', source_url:'', submitted_by:'seed', votes:0 },
+];
+
+const log = document.getElementById('log');
+function addLog(msg, cls='') {
+  const line = document.createElement('div');
+  line.className = cls;
+  line.textContent = msg;
+  log.appendChild(line);
+  log.scrollTop = log.scrollHeight;
+}
+
+async function seedAll() {
+  const btn = document.getElementById('btn');
+  btn.disabled = true;
+  btn.textContent = 'Insertando...';
+  log.innerHTML = '';
+  addLog(`🚀 Iniciando inserción de ${cities.length} ciudades...`, 'info');
+
+  // Get existing city names to skip duplicates
+  const { data: existing } = await db.from('cities').select('city_name');
+  const existingNames = new Set((existing || []).map(c => c.city_name.toLowerCase()));
+  addLog(`ℹ️ ${existingNames.size} ciudades ya existentes en la BD`, 'info');
+
+  let ok = 0, skipped = 0, errors = 0;
+
+  for (const city of cities) {
+    if (existingNames.has(city.city_name.toLowerCase())) {
+      addLog(`⏭️  SKIP: ${city.city_name} (ya existe)`, 'info');
+      skipped++;
+      continue;
+    }
+    const { error } = await db.from('cities').insert(city);
+    if (error) {
+      addLog(`❌ ERROR: ${city.city_name} — ${error.message}`, 'err');
+      errors++;
+    } else {
+      addLog(`✅ OK: ${city.city_name} (${city.country})`, 'ok');
+      ok++;
+    }
+    await new Promise(r => setTimeout(r, 80));
+  }
+
+  addLog('', '');
+  addLog(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`, 'info');
+  addLog(`✅ Insertadas: ${ok}  |  ⏭️ Saltadas: ${skipped}  |  ❌ Errores: ${errors}`, ok > 0 ? 'ok' : 'err');
+  addLog(`🎉 ¡Proceso completado! Ve a la app principal y verifica la base de datos.`, 'ok');
+  btn.textContent = '✅ Completado';
+}
+</script>
+</body>
+</html>
