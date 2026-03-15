@@ -10,6 +10,10 @@ export default async function handler(req, res) {
 
   const GEMINI_KEY = process.env.GEMINI_API_KEY;
 
+  if (!GEMINI_KEY) {
+    return res.status(500).json({ error: 'GEMINI_API_KEY no configurada en variables de entorno' });
+  }
+
   try {
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,
@@ -23,12 +27,18 @@ export default async function handler(req, res) {
     );
 
     const data = await response.json();
+
+    // Devolver siempre la respuesta completa para diagnosticar
     const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (text) {
       return res.status(200).json({ text });
     } else {
-      return res.status(500).json({ error: 'Sin respuesta de Gemini', raw: data });
+      return res.status(200).json({ 
+        error: 'Sin texto en respuesta',
+        httpStatus: response.status,
+        raw: data 
+      });
     }
   } catch (e) {
     return res.status(500).json({ error: e.message });
