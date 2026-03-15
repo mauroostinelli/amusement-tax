@@ -16,7 +16,7 @@ export default async function handler(req, res) {
 
   try {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_KEY}`,
+      `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash-001:generateContent?key=${GEMINI_KEY}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -39,7 +39,6 @@ export default async function handler(req, res) {
     if (text) {
       return res.status(200).json({ text });
     } else {
-      // Devolver raw completo para diagnostico
       return res.status(200).json({ 
         error: 'Sin texto en respuesta',
         httpStatus: response.status,
