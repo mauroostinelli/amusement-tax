@@ -11,33 +11,39 @@ export default async function handler(req, res) {
   const GEMINI_KEY = process.env.GEMINI_API_KEY;
 
   if (!GEMINI_KEY) {
-    return res.status(500).json({ error: 'GEMINI_API_KEY no configurada en variables de entorno' });
+    return res.status(500).json({ error: 'GEMINI_API_KEY no configurada en variables de entorno de Vercel' });
   }
 
   try {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_KEY}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }]
+          contents: [{ 
+            role: 'user',
+            parts: [{ text: prompt }] 
+          }],
+          generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: 2048
+          }
         })
       }
     );
 
     const data = await response.json();
-
-    // Devolver siempre la respuesta completa para diagnosticar
     const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (text) {
       return res.status(200).json({ text });
     } else {
+      // Devolver raw completo para diagnostico
       return res.status(200).json({ 
         error: 'Sin texto en respuesta',
         httpStatus: response.status,
-        raw: data 
+        raw: JSON.stringify(data)
       });
     }
   } catch (e) {
