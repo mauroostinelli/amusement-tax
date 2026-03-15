@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Amusement Tax</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --surface: #111111;
+    --surface2: #1a1a1a;
+    --accent: #ff4d00;
+    --accent2: #ff7a3d;
+    --text: #f0f0f0;
+    --text2: #888;
+    --border: #222;
+    --green: #00c853;
+    --red: #ff1744;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:'Inter',system-ui,sans-serif; min-height:100vh; }
+  
+  /* NAV */
+  nav { display:flex; justify-content:space-between; align-items:center; padding:20px 40px; border-bottom:1px solid var(--border); position:sticky; top:0; background:rgba(10,10,10,0.95); backdrop-filter:blur(10px); z-index:100; }
+  .nav-logo { font-size:1.1rem; font-weight:700; color:var(--accent); letter-spacing:2px; text-transform:uppercase; }
+  .nav-links { display:flex; gap:8px; align-items:center; }
+  .nav-links button { background:none; border:none; color:var(--text2); cursor:pointer; padding:8px 16px; border-radius:8px; font-size:0.9rem; transition:all 0.2s; }
+  .nav-links button:hover, .nav-links button.active { color:var(--text); background:var(--surface2); }
+  .nav-links button.claim-btn { background:var(--accent); color:white; font-weight:600; }
+  .nav-links button.claim-btn:hover { background:var(--accent2); }
+  .lang-select { background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:6px 10px; border-radius:8px; font-size:0.85rem; cursor:pointer; }
+
+  /* PAGES */
+  .page { display:none; }
+  .page.active { display:block; }
+
+  /* HOME */
+  #home { display:none; flex-direction:column; align-items:center; justify-content:center; min-height:85vh; padding:40px 20px; text-align:center; }
+  #home.active { display:flex; }
+  .hero-logo { font-size:clamp(2.5rem,8vw,5rem); font-weight:900; letter-spacing:-2px; margin-bottom:8px; }
+  .hero-logo span { color:var(--accent); }
+  .hero-sub { color:var(--text2); font-size:1rem; max-width:500px; margin-bottom:40px; line-height:1.6; }
+  .search-wrap { position:relative; width:100%; max-width:580px; }
+  .search-wrap input { width:100%; padding:18px 60px 18px 24px; border-radius:16px; border:1px solid var(--border); background:var(--surface); color:var(--text); font-size:1.1rem; outline:none; transition:border 0.2s; }
+  .search-wrap input:focus { border-color:var(--accent); }
+  .search-wrap button { position:absolute; right:12px; top:50%; transform:translateY(-50%); background:var(--accent); border:none; color:white; width:42px; height:42px; border-radius:12px; cursor:pointer; font-size:1.2rem; }
+  .search-results { width:100%; max-width:580px; margin-top:8px; background:var(--surface); border:1px solid var(--border); border-radius:16px; overflow:hidden; display:none; }
+  .search-result-item { padding:16px 24px; cursor:pointer; border-bottom:1px solid var(--border); transition:background 0.15s; display:flex; justify-content:space-between; align-items:center; }
+  .search-result-item:hover { background:var(--surface2); }
+  .search-result-item:last-child { border-bottom:none; }
+  .result-city { font-weight:600; font-size:1rem; }
+  .result-country { color:var(--text2); font-size:0.85rem; }
+  .result-amount { color:var(--accent); font-weight:700; font-size:1rem; }
+
+  /* CITY MODAL */
+  .modal-overlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:200; align-items:center; justify-content:center; padding:20px; }
+  .modal-overlay.open { display:flex; }
+  .modal { background:var(--surface); border:1px solid var(--border); border-radius:20px; max-width:600px; width:100%; padding:32px; position:relative; max-height:90vh; overflow-y:auto; }
+  .modal-close { position:absolute; top:16px; right:16px; background:var(--surface2); border:none; color:var(--text2); width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:1.2rem; }
+  .modal h2 { font-size:1.8rem; margin-bottom:4px; }
+  .modal .modal-country { color:var(--text2); margin-bottom:20px; }
+  .modal .tax-name { background:var(--surface2); border-left:3px solid var(--accent); padding:12px 16px; border-radius:0 8px 8px 0; margin-bottom:16px; font-size:0.9rem; }
+  .modal .authority { color:var(--text2); font-size:0.9rem; margin-bottom:20px; }
+  .price-tag { display:inline-block; background:var(--accent); color:white; padding:8px 20px; border-radius:12px; font-size:1.4rem; font-weight:700; margin-bottom:20px; }
+  .modal .notes { color:var(--text2); font-size:0.9rem; line-height:1.6; margin-bottom:20px; }
+  .vote-row { display:flex; gap:12px; align-items:center; }
+  .vote-btn { background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:8px 18px; border-radius:10px; cursor:pointer; font-size:0.9rem; transition:all 0.2s; }
+  .vote-btn.up:hover { background:var(--green); border-color:var(--green); color:white; }
+  .vote-btn.down:hover { background:var(--red); border-color:var(--red); color:white; }
+  .vote-count { color:var(--text2); font-size:0.9rem; }
+
+  /* DATABASE PAGE */
+  .page-content { max-width:1100px; margin:0 auto; padding:40px 20px; }
+  .page-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:32px; flex-wrap:wrap; gap:16px; }
+  .page-header h1 { font-size:1.8rem; }
+  .btn-primary { background:var(--accent); border:none; color:white; padding:10px 22px; border-radius:10px; cursor:pointer; font-size:0.95rem; font-weight:600; transition:background 0.2s; }
+  .btn-primary:hover { background:var(--accent2); }
+  .cities-grid { display:grid; gap:16px; }
+  .city-card { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:20px 24px; display:grid; grid-template-columns:1fr auto; gap:12px; align-items:center; cursor:pointer; transition:border 0.2s; }
+  .city-card:hover { border-color:var(--accent); }
+  .city-card-info h3 { font-size:1.1rem; margin-bottom:4px; }
+  .city-card-info .card-country { color:var(--text2); font-size:0.85rem; margin-bottom:6px; }
+  .city-card-info .card-tax { font-size:0.8rem; color:var(--text2); }
+  .city-card-right { text-align:right; }
+  .card-price { color:var(--accent); font-weight:700; font-size:1.1rem; }
+  .card-votes { color:var(--text2); font-size:0.8rem; margin-top:4px; }
+
+  /* ADD CITY MODAL */
+  .form-group { margin-bottom:18px; }
+  .form-group label { display:block; margin-bottom:6px; font-size:0.9rem; color:var(--text2); }
+  .form-group input, .form-group textarea, .form-group select { width:100%; padding:12px 16px; background:var(--surface2); border:1px solid var(--border); border-radius:10px; color:var(--text); font-size:0.95rem; outline:none; transition:border 0.2s; }
+  .form-group input:focus, .form-group textarea:focus { border-color:var(--accent); }
+  .form-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+
+  /* CLAIM PAGE */
+  #claim.active { display:block; }
+  .claim-wrap { max-width:700px; margin:0 auto; padding:40px 20px; }
+  .claim-header { margin-bottom:32px; }
+  .claim-header h1 { font-size:2rem; margin-bottom:8px; }
+  .claim-header p { color:var(--text2); line-height:1.6; }
+  .claim-form { background:var(--surface); border:1px solid var(--border); border-radius:20px; padding:32px; }
+  .btn-claim { width:100%; background:var(--accent); border:none; color:white; padding:16px; border-radius:12px; font-size:1.1rem; font-weight:700; cursor:pointer; transition:background 0.2s; margin-top:8px; }
+  .btn-claim:hover { background:var(--accent2); }
+  .btn-claim:disabled { background:var(--surface2); color:var(--text2); cursor:not-allowed; }
+  .generated-doc { margin-top:32px; background:var(--surface); border:1px solid var(--accent); border-radius:20px; padding:32px; }
+  .generated-doc h3 { color:var(--accent); margin-bottom:16px; }
+  .doc-content { white-space:pre-wrap; font-size:0.9rem; line-height:1.8; color:var(--text); font-family:'Courier New',monospace; background:var(--surface2); padding:20px; border-radius:12px; }
+  .copy-btn { margin-top:16px; background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:10px 20px; border-radius:10px; cursor:pointer; font-size:0.9rem; }
+  .copy-btn:hover { border-color:var(--accent); }
+  .loader { display:inline-block; width:20px; height:20px; border:2px solid var(--surface2); border-top:2px solid var(--accent); border-radius:50%; animation:spin 0.8s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .loading-text { display:flex; align-items:center; gap:12px; color:var(--text2); padding:20px; }
+
+  /* ABOUT PAGE */
+  .about-wrap { max-width:800px; margin:0 auto; padding:40px 20px; }
+  .about-wrap h1 { font-size:2rem; margin-bottom:8px; }
+  .about-wrap .subtitle { color:var(--accent); margin-bottom:32px; font-size:1rem; }
+  .about-wrap p { color:var(--text2); line-height:1.8; margin-bottom:16px; }
+  .about-wrap h2 { font-size:1.3rem; margin:32px 0 12px; }
+
+  /* TOAST */
+  .toast { position:fixed; bottom:24px; right:24px; background:var(--surface); border:1px solid var(--border); color:var(--text); padding:14px 20px; border-radius:12px; font-size:0.9rem; z-index:999; transform:translateY(100px); opacity:0; transition:all 0.3s; }
+  .toast.show { transform:translateY(0); opacity:1; }
+  .toast.success { border-color:var(--green); }
+  .toast.error { border-color:var(--red); }
+
+  @media(max-width:600px) {
+    nav { padding:12px 16px; }
+    .nav-links button { padding:6px 10px; font-size:0.8rem; }
+    .form-row { grid-template-columns:1fr; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">🎢 AT</div>
+  <div class="nav-links">
+    <button onclick="showPage('home')" class="active" id="nav-home" data-i18n="nav_home">Inicio</button>
+    <button onclick="showPage('database')" id="nav-database" data-i18n="nav_db">Base de datos</button>
+    <button onclick="showPage('claim')" class="claim-btn" id="nav-claim" data-i18n="nav_claim">🧾 Reclama</button>
+    <button onclick="showPage('about')" id="nav-about" data-i18n="nav_about">¿Qué es esto?</button>
+    <select class="lang-select" onchange="changeLang(this.value)">
+      <option value="es">🇪🇸 ES</option>
+      <option value="en">🇬🇧 EN</option>
+      <option value="fr">🇫🇷 FR</option>
+      <option value="de">🇩🇪 DE</option>
+      <option value="it">🇮🇹 IT</option>
+      <option value="pt">🇵🇹 PT</option>
+    </select>
+  </div>
+</nav>
+
+<!-- HOME -->
+<div id="home" class="page active">
+  <div class="hero-logo">Amusement <span>Tax</span></div>
+  <p class="hero-sub" data-i18n="hero_sub">Las ciudades te cobran como si fueran un parque de atracciones. Aquí guardamos el registro — y te ayudamos a reclamar.</p>
+  <div class="search-wrap">
+    <input type="text" id="searchInput" data-i18n-placeholder="search_placeholder" placeholder="Busca una ciudad... Barcelona, París, Venecia..." oninput="searchCities(this.value)">
+    <button onclick="searchCities(document.getElementById('searchInput').value)">🔍</button>
+  </div>
+  <div class="search-results" id="searchResults"></div>
+</div>
+
+<!-- DATABASE -->
+<div id="database" class="page">
+  <div class="page-content">
+    <div class="page-header">
+      <h1 data-i18n="db_title">Base de datos colaborativa</h1>
+      <button class="btn-primary" onclick="openAddModal()" data-i18n="db_add">+ Añadir ciudad</button>
+    </div>
+    <div class="cities-grid" id="citiesGrid">
+      <div class="loading-text"><div class="loader"></div> <span data-i18n="loading">Cargando...</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- CLAIM -->
+<div id="claim" class="page">
+  <div class="claim-wrap">
+    <div class="claim-header">
+      <h1 data-i18n="claim_title">🧾 Reclama tu tasa</h1>
+      <p data-i18n="claim_sub">Genera automáticamente un recurso formal con IA para solicitar la devolución de la tasa turística más un 50% en compensaciones.</p>
+    </div>
+    <div class="claim-form">
+      <div class="form-group">
+        <label data-i18n="claim_name">Tu nombre completo</label>
+        <input type="text" id="c_name" placeholder="Juan García López">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label data-i18n="claim_city">Ciudad</label>
+          <input type="text" id="c_city" placeholder="Barcelona">
+        </div>
+        <div class="form-group">
+          <label data-i18n="claim_nights">Noches de estancia</label>
+          <input type="number" id="c_nights" placeholder="3" min="1">
+        </div>
+      </div>
+      <div class="form-group">
+        <label data-i18n="claim_hotel">Nombre del hotel / alojamiento</label>
+        <input type="text" id="c_hotel" placeholder="Hotel Arts Barcelona">
+      </div>
+      <div class="form-group">
+        <label data-i18n="claim_reason">Motivo de la reclamación</label>
+        <textarea id="c_reason" rows="4" placeholder="Describe con detalle el motivo por el que consideras que debes recibir la devolución..."></textarea>
+      </div>
+      <button class="btn-claim" onclick="generateClaim()" id="claimBtn" data-i18n="claim_btn">⚖️ Generar recurso con IA</button>
+    </div>
+    <div class="generated-doc" id="generatedDoc" style="display:none">
+      <h3 data-i18n="doc_title">📄 Documento generado</h3>
+      <div class="doc-content" id="docContent"></div>
+      <button class="copy-btn" onclick="copyDoc()" data-i18n="doc_copy">📋 Copiar documento</button>
+    </div>
+  </div>
+</div>
+
+<!-- ABOUT -->
+<div id="about" class="page">
+  <div class="about-wrap">
+    <h1>Amusement Tax</h1>
+    <p class="subtitle" data-i18n="about_sub">Cuando la ciudad cobra como un parque de atracciones</p>
+    <p data-i18n="about_p1">Cada vez más ciudades del mundo cobran una "tasa turística" por pernoctar. En la práctica, esto equivale a pagar una entrada para acceder a la ciudad, transformando el espacio público en un recinto privado con ticket de acceso.</p>
+    <h2 data-i18n="about_h2">El problema</h2>
+    <p data-i18n="about_p2">Venecia ya cobra un "contributo d'accesso" de 5-10€ por día. Barcelona puede alcanzar los 10-15€ por noche. Si pagas como cliente, tienes derechos de cliente: calidad, satisfacción, y devolución. Amusement Tax documenta esta transformación y te ayuda a ejercer esos derechos.</p>
+    <h2 data-i18n="about_h3">Cómo funciona</h2>
+    <p data-i18n="about_p3">Esta base de datos es colaborativa. Cualquier usuario puede añadir o corregir información sobre tasas turísticas. La entrada con más votos positivos aparece como la información oficial. En la pestaña "Reclama", una IA redacta automáticamente un recurso formal para solicitar la devolución.</p>
+    <h2 data-i18n="about_h4">Aviso legal</h2>
+    <p data-i18n="about_p4">Los documentos generados son orientativos y no constituyen asesoramiento jurídico. Consulta con un profesional antes de presentar cualquier reclamación formal.</p>
+  </div>
+</div>
+
+<!-- CITY MODAL -->
+<div class="modal-overlay" id="cityModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('cityModal')">✕</button>
+    <h2 id="m_city"></h2>
+    <div class="modal-country" id="m_country"></div>
+    <div class="tax-name" id="m_taxname"></div>
+    <div class="authority" id="m_authority"></div>
+    <div class="price-tag" id="m_price"></div>
+    <div class="notes" id="m_notes"></div>
+    <div class="vote-row">
+      <button class="vote-btn up" onclick="vote('up')" data-i18n="vote_up">👍 Útil</button>
+      <button class="vote-btn down" onclick="vote('down')" data-i18n="vote_down">👎 Incorrecta</button>
+      <span class="vote-count" id="m_votes"></span>
+    </div>
+  </div>
+</div>
+
+<!-- ADD CITY MODAL -->
+<div class="modal-overlay" id="addModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('addModal')">✕</button>
+    <h2 style="margin-bottom:24px" data-i18n="add_title">Añadir ciudad</h2>
+    <div class="form-row">
+      <div class="form-group">
+        <label data-i18n="add_city">Ciudad *</label>
+        <input type="text" id="a_city" placeholder="Barcelona">
+      </div>
+      <div class="form-group">
+        <label data-i18n="add_country">País *</label>
+        <input type="text" id="a_country" placeholder="España">
+      </div>
+    </div>
+    <div class="form-group">
+      <label data-i18n="add_taxname">Nombre oficial de la tasa *</label>
+      <input type="text" id="a_taxname" placeholder="IEET - Impuesto sobre Estancias en Establecimientos Turísticos">
+    </div>
+    <div class="form-group">
+      <label data-i18n="add_authority">Organismo recaudador *</label>
+      <input type="text" id="a_authority" placeholder="Agència Tributària de Catalunya">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label data-i18n="add_min">Importe mínimo (€/noche)</label>
+        <input type="number" id="a_min" placeholder="1.50" step="0.01">
+      </div>
+      <div class="form-group">
+        <label data-i18n="add_max">Importe máximo (€/noche)</label>
+        <input type="number" id="a_max" placeholder="7.00" step="0.01">
+      </div>
+    </div>
+    <div class="form-group">
+      <label data-i18n="add_notes">Notas adicionales</label>
+      <textarea id="a_notes" rows="3" placeholder="Descripción de tramos, exenciones, etc."></textarea>
+    </div>
+    <div class="form-group">
+      <label data-i18n="add_url">Enlace a la normativa (opcional)</label>
+      <input type="url" id="a_url" placeholder="https://...">
+    </div>
+    <div class="form-group">
+      <label data-i18n="add_user">Tu nombre / alias</label>
+      <input type="text" id="a_user" placeholder="anonymous">
+    </div>
+    <button class="btn-primary" style="width:100%;padding:14px" onclick="submitCity()" data-i18n="add_submit">Publicar entrada</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── CONFIG ──────────────────────────────────────────────────────────────
+const SUPABASE_URL = 'https://kflbexqsssmdyadlxsrd.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtmbGJleHFzc3NtZHlhZGx4c3JkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2MDc5MjYsImV4cCI6MjA4OTE4MzkyNn0.FYJaRPJum4-HAgngXlZ4XzhazUbcw9Y0YJDA97Y_m-0';
+const GEMINI_KEY = 'AIzaSyDOO_UikgC-iISgbYJS_cSH_di4p16w7n4';
+
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let currentCityId = null;
+let allCities = [];
+
+// ─── I18N ────────────────────────────────────────────────────────────────
+const i18n = {
+  es: {
+    nav_home:'Inicio', nav_db:'Base de datos', nav_claim:'🧾 Reclama', nav_about:'¿Qué es esto?',
+    hero_sub:'Las ciudades te cobran como si fueran un parque de atracciones. Aquí guardamos el registro — y te ayudamos a reclamar.',
+    search_placeholder:'Busca una ciudad... Barcelona, París, Venecia...',
+    db_title:'Base de datos colaborativa', db_add:'+ Añadir ciudad',
+    claim_title:'🧾 Reclama tu tasa', claim_sub:'Genera automáticamente un recurso formal con IA para solicitar la devolución de la tasa turística más un 50% en compensaciones.',
+    claim_name:'Tu nombre completo', claim_city:'Ciudad', claim_nights:'Noches de estancia', claim_hotel:'Nombre del hotel / alojamiento', claim_reason:'Motivo de la reclamación', claim_btn:'⚖️ Generar recurso con IA',
+    doc_title:'📄 Documento generado', doc_copy:'📋 Copiar documento',
+    about_sub:'Cuando la ciudad cobra como un parque de atracciones',
+    about_p1:'Cada vez más ciudades del mundo cobran una "tasa turística" por pernoctar. En la práctica, esto equivale a pagar una entrada para acceder a la ciudad, transformando el espacio público en un recinto privado con ticket de acceso.',
+    about_h2:'El problema', about_p2:'Venecia ya cobra un "contributo d\'accesso" de 5-10€ por día. Barcelona puede alcanzar los 10-15€ por noche. Si pagas como cliente, tienes derechos de cliente: calidad, satisfacción, y devolución. Amusement Tax documenta esta transformación y te ayuda a ejercer esos derechos.',
+    about_h3:'Cómo funciona', about_p3:'Esta base de datos es colaborativa. Cualquier usuario puede añadir o corregir información sobre tasas turísticas. La entrada con más votos positivos aparece como la información oficial. En la pestaña "Reclama", una IA redacta automáticamente un recurso formal.',
+    about_h4:'Aviso legal', about_p4:'Los documentos generados son orientativos y no constituyen asesoramiento jurídico.',
+    vote_up:'👍 Útil', vote_down:'👎 Incorrecta',
+    add_title:'Añadir ciudad', add_city:'Ciudad *', add_country:'País *', add_taxname:'Nombre oficial de la tasa *', add_authority:'Organismo recaudador *', add_min:'Importe mínimo (€/noche)', add_max:'Importe máximo (€/noche)', add_notes:'Notas adicionales', add_url:'Enlace a la normativa (opcional)', add_user:'Tu nombre / alias', add_submit:'Publicar entrada',
+    loading:'Cargando...'
+  },
+  en: {
+    nav_home:'Home', nav_db:'Database', nav_claim:'🧾 Claim', nav_about:'What is this?',
+    hero_sub:'Cities charge you like an amusement park. Here we keep the record — and help you claim back.',
+    search_placeholder:'Search a city... Barcelona, Paris, Venice...',
+    db_title:'Collaborative database', db_add:'+ Add city',
+    claim_title:'🧾 Claim your tax', claim_sub:'Automatically generate a formal document with AI to request the refund of the tourist tax plus 50% in compensation.',
+    claim_name:'Your full name', claim_city:'City', claim_nights:'Nights of stay', claim_hotel:'Hotel / accommodation name', claim_reason:'Reason for the claim', claim_btn:'⚖️ Generate document with AI',
+    doc_title:'📄 Generated document', doc_copy:'📋 Copy document',
+    about_sub:'When the city charges like an amusement park',
+    about_p1:'More and more cities worldwide charge a "tourist tax" for overnight stays. In practice, this is equivalent to paying an entry ticket to the city, turning public space into a private venue.',
+    about_h2:'The problem', about_p2:'Venice already charges a "contributo d\'accesso" of €5-10 per day. Barcelona can reach €10-15 per night. If you pay like a customer, you have customer rights.',
+    about_h3:'How it works', about_p3:'This database is collaborative. Any user can add or correct information about tourist taxes. The entry with the most upvotes appears as the official information.',
+    about_h4:'Legal notice', about_p4:'Generated documents are guidance only and do not constitute legal advice.',
+    vote_up:'👍 Useful', vote_down:'👎 Incorrect',
+    add_title:'Add city', add_city:'City *', add_country:'Country *', add_taxname:'Official tax name *', add_authority:'Tax authority *', add_min:'Min amount (€/night)', add_max:'Max amount (€/night)', add_notes:'Additional notes', add_url:'Link to regulation (optional)', add_user:'Your name / alias', add_submit:'Submit entry',
+    loading:'Loading...'
+  }
+};
+
+let currentLang = 'es';
+
+async function changeLang(lang) {
+  currentLang = lang;
+  if (i18n[lang]) {
+    applyTranslations(i18n[lang]);
+  } else {
+    await translateViaGoogle(lang);
+  }
+}
+
+function applyTranslations(t) {
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if (t[key]) el.textContent = t[key];
+  });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    const key = el.getAttribute('data-i18n-placeholder');
+    if (t[key]) el.placeholder = t[key];
+  });
+}
+
+async function translateViaGoogle(lang) {
+  const keys = Object.keys(i18n.en);
+  const texts = keys.map(k => i18n.en[k]);
+  const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=${lang}&dt=t&q=${encodeURIComponent(texts.join('\n||||\n'))}`;
+  try {
+    const res = await fetch(url);
+    const data = await res.json();
+    const translated = data[0].map(t => t[0]).join('').split('\n||||\n');
+    const obj = {};
+    keys.forEach((k,i) => { obj[k] = translated[i] || i18n.en[k]; });
+    applyTranslations(obj);
+  } catch(e) {
+    applyTranslations(i18n.en);
+  }
+}
+
+// ─── NAVIGATION ──────────────────────────────────────────────────────────
+function showPage(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-links button[id^=nav]').forEach(b => b.classList.remove('active'));
+  document.getElementById(page).classList.add('active');
+  document.getElementById('nav-'+page)?.classList.add('active');
+  if (page === 'database') loadCities();
+}
+
+// ─── SEARCH ──────────────────────────────────────────────────────────────
+let searchTimeout;
+async function searchCities(q) {
+  clearTimeout(searchTimeout);
+  const results = document.getElementById('searchResults');
+  if (!q || q.length < 2) { results.style.display='none'; return; }
+  searchTimeout = setTimeout(async () => {
+    const { data } = await db.from('cities').select('*').ilike('city_name', `%${q}%`).order('votes', {ascending:false}).limit(8);
+    if (!data || !data.length) { results.style.display='none'; return; }
+    results.style.display='block';
+    results.innerHTML = data.map(c => `
+      <div class="search-result-item" onclick="openCityModal(${JSON.stringify(c).replace(/"/g,'&quot;')})">
+        <div><div class="result-city">${c.city_name}</div><div class="result-country">${c.country}</div></div>
+        <div class="result-amount">${c.amount_min}–${c.amount_max} ${c.currency}/noche</div>
+      </div>`).join('');
+  }, 300);
+}
+
+// ─── CITIES DATABASE ─────────────────────────────────────────────────────
+async function loadCities() {
+  const grid = document.getElementById('citiesGrid');
+  grid.innerHTML = '<div class="loading-text"><div class="loader"></div> <span>Cargando...</span></div>';
+  const { data, error } = await db.from('cities').select('*').order('votes', {ascending:false});
+  if (error || !data) { grid.innerHTML = '<p style="color:var(--text2)">Error cargando datos.</p>'; return; }
+  allCities = data;
+  grid.innerHTML = data.map(c => `
+    <div class="city-card" onclick="openCityModal(${JSON.stringify(c).replace(/"/g,'&quot;')})">
+      <div class="city-card-info">
+        <h3>${c.city_name} <span style="color:var(--text2);font-weight:400;font-size:0.9rem">· ${c.country}</span></h3>
+        <div class="card-country">${c.tax_authority || ''}</div>
+        <div class="card-tax">${c.tax_name}</div>
+      </div>
+      <div class="city-card-right">
+        <div class="card-price">${c.amount_min}–${c.amount_max} ${c.currency}</div>
+        <div class="card-votes">▲ ${c.votes} votos</div>
+      </div>
+    </div>`).join('');
+}
+
+// ─── CITY MODAL ──────────────────────────────────────────────────────────
+function openCityModal(c) {
+  if (typeof c === 'string') c = JSON.parse(c);
+  currentCityId = c.id;
+  document.getElementById('m_city').textContent = c.city_name;
+  document.getElementById('m_country').textContent = `📍 ${c.country}`;
+  document.getElementById('m_taxname').textContent = c.tax_name;
+  document.getElementById('m_authority').textContent = `Recaudado por: ${c.tax_authority}`;
+  document.getElementById('m_price').textContent = `${c.amount_min} – ${c.amount_max} ${c.currency} / noche`;
+  document.getElementById('m_notes').textContent = c.notes || '';
+  document.getElementById('m_votes').textContent = `${c.votes} votos`;
+  document.getElementById('cityModal').classList.add('open');
+  document.getElementById('searchResults').style.display='none';
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+async function vote(type) {
+  if (!currentCityId) return;
+  const delta = type === 'up' ? 1 : -1;
+  const { data: city } = await db.from('cities').select('votes').eq('id', currentCityId).single();
+  const newVotes = (city?.votes || 0) + delta;
+  const { error } = await db.from('cities').update({ votes: newVotes }).eq('id', currentCityId);
+  if (!error) {
+    document.getElementById('m_votes').textContent = `${newVotes} votos`;
+    showToast(type === 'up' ? '👍 Voto registrado' : '👎 Voto negativo registrado', 'success');
+  }
+}
+
+// ─── ADD CITY ────────────────────────────────────────────────────────────
+function openAddModal() { document.getElementById('addModal').classList.add('open'); }
+
+async function submitCity() {
+  const city = document.getElementById('a_city').value.trim();
+  const country = document.getElementById('a_country').value.trim();
+  const taxname = document.getElementById('a_taxname').value.trim();
+  const authority = document.getElementById('a_authority').value.trim();
+  if (!city || !country || !taxname || !authority) { showToast('Rellena los campos obligatorios *', 'error'); return; }
+  const { error } = await db.from('cities').insert({
+    city_name: city, country, tax_name: taxname, tax_authority: authority,
+    amount_min: parseFloat(document.getElementById('a_min').value) || 0,
+    amount_max: parseFloat(document.getElementById('a_max').value) || 0,
+    notes: document.getElementById('a_notes').value,
+    source_url: document.getElementById('a_url').value,
+    submitted_by: document.getElementById('a_user').value || 'anonymous',
+    votes: 0
+  });
+  if (error) { showToast('Error al guardar: ' + error.message, 'error'); return; }
+  closeModal('addModal');
+  showToast('✅ Ciudad añadida correctamente', 'success');
+  loadCities();
+}
+
+// ─── CLAIM / GEMINI ──────────────────────────────────────────────────────
+async function generateClaim() {
+  const name = document.getElementById('c_name').value.trim();
+  const city = document.getElementById('c_city').value.trim();
+  const nights = document.getElementById('c_nights').value;
+  const hotel = document.getElementById('c_hotel').value.trim();
+  const reason = document.getElementById('c_reason').value.trim();
+  if (!name || !city || !nights || !hotel || !reason) { showToast('Completa todos los campos', 'error'); return; }
+
+  // Find tax info for city
+  const cityData = allCities.find(c => c.city_name.toLowerCase() === city.toLowerCase());
+  const taxInfo = cityData ? `La tasa aplicable es "${cityData.tax_name}" gestionada por ${cityData.tax_authority}, con un importe de ${cityData.amount_min}–${cityData.amount_max} ${cityData.currency} por noche.` : `Tasa turística de la ciudad de ${city}.`;
+  const totalMin = cityData ? (cityData.amount_min * parseInt(nights)).toFixed(2) : 'cantidad no determinada';
+  const compensation = cityData ? ((cityData.amount_min * parseInt(nights) * 1.5)).toFixed(2) : 'cantidad no determinada';
+
+  const btn = document.getElementById('claimBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="loader" style="display:inline-block;margin-right:8px"></div> Generando...';
+
+  const docDiv = document.getElementById('generatedDoc');
+  const docContent = document.getElementById('docContent');
+  docDiv.style.display = 'block';
+  docContent.innerHTML = '<div class="loading-text"><div class="loader"></div> La IA está redactando tu recurso...</div>';
+
+  const prompt = `Eres un experto en derecho administrativo y tributario. Redacta un recurso formal y profesional en español para solicitar la devolución de una tasa turística. 
+
+Datos del reclamante:
+- Nombre: ${name}
+- Ciudad visitada: ${city}
+- Hotel / alojamiento: ${hotel}
+- Noches de estancia: ${nights}
+- Información de la tasa: ${taxInfo}
+- Importe total aproximado pagado: ${totalMin}€
+- Motivo de la reclamación: ${reason}
+
+El recurso debe:
+1. Tener formato de escrito formal dirigido al organismo gestor de la tasa
+2. Incluir referencias a los fundamentos jurídicos aplicables (Ley General Tributaria, derechos del contribuyente)
+3. Solicitar la devolución del importe pagado (${totalMin}€) MÁS un 50% adicional en concepto de compensación e intereses de demora (total: ${compensation}€)
+4. Incluir los apartados: Encabezamiento, Hechos, Fundamentos de Derecho, Solicitud y Lugar/Fecha/Firma
+5. Ser convincente y formalmente correcto
+6. Incluir espacios [FECHA], [DNI/PASAPORTE], [DIRECCIÓN] para que el usuario los complete
+
+Genera el documento completo.`;
+
+  try {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ contents:[{ parts:[{ text: prompt }] }] })
+    });
+    const data = await res.json();
+    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (text) {
+      docContent.textContent = text;
+      // Save to DB
+      await db.from('claims').insert({ claimant_name:name, city_name:city, hotel_name:hotel, nights:parseInt(nights), reason, generated_document:text });
+      showToast('✅ Recurso generado correctamente', 'success');
+    } else {
+      docContent.textContent = 'Error al generar el documento. Respuesta de la API: ' + JSON.stringify(data);
+    }
+  } catch(e) {
+    docContent.textContent = 'Error de conexión con la API: ' + e.message;
+  }
+  btn.disabled = false;
+  btn.innerHTML = '⚖️ Generar recurso con IA';
+}
+
+function copyDoc() {
+  const text = document.getElementById('docContent').textContent;
+  navigator.clipboard.writeText(text).then(() => showToast('📋 Copiado al portapapeles', 'success'));
+}
+
+// ─── TOAST ───────────────────────────────────────────────────────────────
+function showToast(msg, type='') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `toast ${type} show`;
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// Close modals clicking outside
+document.querySelectorAll('.modal-overlay').forEach(o => {
+  o.addEventListener('click', e => { if (e.target === o) o.classList.remove('open'); });
+});
+
+// Hide search results on outside click
+document.addEventListener('click', e => {
+  if (!e.target.closest('.search-wrap') && !e.target.closest('.search-results')) {
+    document.getElementById('searchResults').style.display='none';
+  }
+});
+</script>
+</body>
+</html>
