@@ -304,7 +304,6 @@
 // ─── CONFIG ──────────────────────────────────────────────────────────────
 const SUPABASE_URL = 'https://kflbexqsssmdyadlxsrd.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtmbGJleHFzc3NtZHlhZGx4c3JkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2MDc5MjYsImV4cCI6MjA4OTE4MzkyNn0.FYJaRPJum4-HAgngXlZ4XzhazUbcw9Y0YJDA97Y_m-0';
-const GEMINI_KEY = 'AIzaSyDOO_UikgC-iISgbYJS_cSH_di4p16w7n4';
 
 const { createClient } = supabase;
 const db = createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -537,26 +536,26 @@ El recurso debe:
 Genera el documento completo.`;
 
   try {
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`, {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ contents:[{ parts:[{ text: prompt }] }] })
+  const res = await fetch('/api/generate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt })
+  });
+  const data = await res.json();
+  const text = data?.text;
+
+  if (text) {
+    docContent.textContent = text;
+    await db.from('claims').insert({
+      claimant_name: name, city_name: city, hotel_name: hotel,
+      nights: parseInt(nights), reason, generated_document: text
     });
-    const data = await res.json();
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (text) {
-      docContent.textContent = text;
-      // Save to DB
-      await db.from('claims').insert({ claimant_name:name, city_name:city, hotel_name:hotel, nights:parseInt(nights), reason, generated_document:text });
-      showToast('✅ Recurso generado correctamente', 'success');
-    } else {
-      docContent.textContent = 'Error al generar el documento. Respuesta de la API: ' + JSON.stringify(data);
-    }
-  } catch(e) {
-    docContent.textContent = 'Error de conexión con la API: ' + e.message;
+    showToast('✅ Recurso generado correctamente', 'success');
+  } else {
+    docContent.textContent = 'Error: ' + (data?.error || 'Respuesta vacía');
   }
-  btn.disabled = false;
-  btn.innerHTML = '⚖️ Generar recurso con IA';
+} catch(e) {
+  docContent.textContent = 'Error de conexión: ' + e.message;
 }
 
 function copyDoc() {
